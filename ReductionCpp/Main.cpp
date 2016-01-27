@@ -36,14 +36,15 @@ int main()
 		auto context = cl::Context(devices);
 
 		auto programFile = ifstream("add.cl");
-		// TODO: understand why we need brackets round the second parameter.
-		auto programString = string(istreambuf_iterator<char>(programFile), (istreambuf_iterator<char>()));
-		auto sources = cl::Program::Sources(1, make_pair(programString.c_str(), programString.length() + 1));
+		auto programString = string(
+			istreambuf_iterator<char>(programFile),
+			istreambuf_iterator<char>());
+		auto sources = cl::Program::Sources(
+			1,
+			make_pair(programString.c_str(), programString.length() + 1));
 		auto program = cl::Program(context, sources);
 
 		program.build(devices);
-
-		auto add = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(program, "add");
 
 		auto d_a = cl::Buffer(context, begin(h_a), end(h_a), true);
 		auto d_b = cl::Buffer(context, begin(h_b), end(h_b), true);
@@ -52,7 +53,8 @@ int main()
 		auto commandQueue = cl::CommandQueue(context, CL_QUEUE_PROFILING_ENABLE);
 
 		auto enqueueArgs = cl::EnqueueArgs(commandQueue, cl::NDRange(ARRAY_SIZE));
-		add(enqueueArgs, d_a, d_b, d_c);
+		auto addFunctor = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(program, "add");
+		addFunctor(enqueueArgs, d_a, d_b, d_c);
 
 		commandQueue.enqueueReadBuffer(d_c, false, 0, sizeof(float)*ARRAY_SIZE, h_c.data());
 
