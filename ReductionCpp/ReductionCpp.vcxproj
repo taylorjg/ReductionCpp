@@ -182,6 +182,7 @@
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Intel_OpenCL_Build_Rules Include="..\..\Ch10_reduction_complete\reduction_complete.cl" />
     <Intel_OpenCL_Build_Rules Include="add.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
