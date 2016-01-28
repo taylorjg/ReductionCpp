@@ -24,11 +24,8 @@ int main()
 		auto h_b = array<float, ARRAY_SIZE>();
 		auto h_c = array<float, ARRAY_SIZE>();
 
-		for (auto i = 0; i < ARRAY_SIZE; ++i) {
-			h_a[i] = 1.0f;
-			h_b[i] = 2.0f;
-			h_c[i] = 0.0f;
-		}
+		h_a.fill(1.0f);
+		h_b.fill(2.0f);
 
 		vector<cl::Device> devices;
 		platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
@@ -56,7 +53,7 @@ int main()
 		auto addFunctor = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(program, "add");
 		addFunctor(enqueueArgs, d_a, d_b, d_c);
 
-		commandQueue.enqueueReadBuffer(d_c, false, 0, sizeof(float)*ARRAY_SIZE, h_c.data());
+		commandQueue.enqueueReadBuffer(d_c, false, 0, sizeof(float) * ARRAY_SIZE, h_c.data());
 
 		commandQueue.finish();
 
