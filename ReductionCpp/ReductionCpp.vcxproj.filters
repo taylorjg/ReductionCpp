@@ -20,9 +20,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="add.cl">
-      <Filter>OpenCL Files</Filter>
-    </Intel_OpenCL_Build_Rules>
     <Intel_OpenCL_Build_Rules Include="reduction.cl">
       <Filter>OpenCL Files</Filter>
     </Intel_OpenCL_Build_Rules>
