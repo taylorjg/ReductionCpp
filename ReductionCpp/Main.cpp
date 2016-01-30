@@ -3,7 +3,6 @@
 #include <CL/cl.hpp>
 #include <iostream>
 #include <fstream>
-#include <array>
 #include <memory>
 
 using namespace std;
@@ -29,7 +28,7 @@ int main()
 
             try {
                 vector<cl::Device> devices;
-                platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+                platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
                 for (auto& device : devices) {
                     auto deviceName = device.getInfo<CL_DEVICE_NAME>();
@@ -42,6 +41,8 @@ int main()
                 if (ex.err() != CL_DEVICE_NOT_FOUND) throw;
                 cout << "No devices found for this platform!" << endl;
             }
+
+			cout << endl;
         }
     }
     catch(const cl::Error& ex) {
@@ -59,9 +60,8 @@ int main()
 void runReduction(const cl::Context& context)
 {
     auto program = loadProgram(context, "reduction.cl");
-
-    auto kernel1 = cl::Kernel::Kernel(program, "reductionVector");
-    auto kernel2 = cl::Kernel::Kernel(program, "reductionComplete");
+    auto kernel1 = cl::Kernel(program, "reductionVector");
+    auto kernel2 = cl::Kernel(program, "reductionComplete");
 
     constexpr auto numValues = 1024 * 1024;
     constexpr auto numValuesPerWorkItem = 4;

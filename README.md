@@ -10,6 +10,10 @@ The aim is to implement the Ch10_reduction_complete example from chapter 10 of t
 This code is now working fine. However, I ran into an issue when trying to run this on CPU devices.
 See [this discussion](https://software.intel.com/en-us/forums/opencl/topic/558984) for details.
 
+## Screenshot
+
+![Screenshot](https://raw.github.com/taylorjg/ReductionCpp/master/Images/Screenshot.png)
+
 ## Links
 
 * [The OpenCL C++ Wrapper API](https://www.khronos.org/registry/cl/specs/opencl-cplusplus-1.2.pdf)
