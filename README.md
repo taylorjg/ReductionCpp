@@ -5,6 +5,11 @@ This is my first foray into using [OpenCL](https://www.khronos.org/opencl/) from
 
 The aim is to implement the Ch10_reduction_complete example from chapter 10 of the book, [_OpenCL in Action_](https://www.manning.com/books/opencl-in-action).
 
+## Update
+
+This code is now working fine. However, I ran into an issue when trying to run this on CPU devices.
+See [this discussion](https://software.intel.com/en-us/forums/opencl/topic/558984) for details.
+
 ## Links
 
 * [The OpenCL C++ Wrapper API](https://www.khronos.org/registry/cl/specs/opencl-cplusplus-1.2.pdf)
@@ -15,3 +20,4 @@ The aim is to implement the Ch10_reduction_complete example from chapter 10 of t
     * _Senior Lecturer in High Performance Computing and Architectures_
     * [OpenCL: A Hands-on Introduction](https://www.cs.bris.ac.uk/home/simonm/SC13/OpenCL_slides_SC13.pdf)
     * [COMPILING OPENCL KERNELS](http://www.cs.bris.ac.uk/home/simonm/montblanc/AdvancedOpenCL_full.pdf)
+* [Problems with reduction done in CPU](https://software.intel.com/en-us/forums/opencl/topic/558984)
