@@ -8,7 +8,6 @@
 
 using namespace std;
 
-void runAdd(const cl::Context& context);
 void runReduction(const cl::Context& context);
 cl::Program loadProgram(const cl::Context& context, const string& fileName);
 
@@ -33,13 +32,9 @@ int main()
 				platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
 
 				for (auto& device : devices) {
-
 					auto deviceName = device.getInfo<CL_DEVICE_NAME>();
 					cout << "\t" << deviceName << endl;
-
 					auto context = cl::Context(device);
-
-					//runAdd(context);
 					runReduction(context);
 				}
 			}
@@ -61,37 +56,6 @@ int main()
 	return 0;
 }
 
-void runAdd(const cl::Context& context)
-{
-	auto program = loadProgram(context, "add.cl");
-
-	constexpr auto ARRAY_SIZE = 1024;
-
-	auto h_a = array<float, ARRAY_SIZE>();
-	auto h_b = array<float, ARRAY_SIZE>();
-	auto h_c = array<float, ARRAY_SIZE>();
-
-	h_a.fill(1.0f);
-	h_b.fill(2.0f);
-
-	auto d_a = cl::Buffer(context, begin(h_a), end(h_a), true);
-	auto d_b = cl::Buffer(context, begin(h_b), end(h_b), true);
-	auto d_c = cl::Buffer(context, begin(h_c), end(h_c), false);
-
-	auto commandQueue = cl::CommandQueue(context, CL_QUEUE_PROFILING_ENABLE);
-
-	auto enqueueArgs = cl::EnqueueArgs(commandQueue, cl::NDRange(ARRAY_SIZE));
-	auto addFunctor = cl::make_kernel<cl::Buffer, cl::Buffer, cl::Buffer>(program, "add");
-	addFunctor(enqueueArgs, d_a, d_b, d_c);
-
-	commandQueue.enqueueReadBuffer(d_c, false, 0, sizeof(float) * ARRAY_SIZE, h_c.data());
-
-	commandQueue.finish();
-
-	cout << h_c.front() << endl;
-	cout << h_c.back() << endl;
-}
-
 void runReduction(const cl::Context& context)
 {
 	auto program = loadProgram(context, "reduction.cl");
@@ -101,22 +65,25 @@ void runReduction(const cl::Context& context)
 
 	constexpr auto numValues = 1024 * 1024;
 	constexpr auto numValuesPerWorkItem = 4;
-	auto globalWorkSize = numValues / numValuesPerWorkItem;
+	constexpr auto initialGlobalWorkSize = numValues / numValuesPerWorkItem;
+	auto globalWorkSize = initialGlobalWorkSize;
 	constexpr auto localWorkSize = 32;
 	constexpr auto value = 42;
 	constexpr auto correctAnswer = 42 * numValues;
+	constexpr auto initialNumWorkGroups = initialGlobalWorkSize / localWorkSize;
 
-	auto hostData1(make_unique<float[]>(numValues));
-	auto hostData2(make_unique<float[]>(numValues));
-	auto hostSum = array<float, 1>();
+	constexpr auto hostData1Size = numValues;
+	constexpr auto hostData2Size = initialNumWorkGroups * numValuesPerWorkItem;
+
+	auto hostData1(make_unique<float[]>(hostData1Size));
+	auto hostData2(make_unique<float[]>(hostData2Size));
+	auto sum = 0.0f;
 
 	for (auto i = 0; i < numValues; ++i) hostData1[i] = 42.0f;
-	for (auto i = 0; i < numValues; ++i) hostData2[i] = 0.0f;
 
-	auto cb = static_cast<size_t>(numValues * sizeof(float));
-	auto deviceData1 = cl::Buffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, cb, hostData1.get());
-	auto deviceData2 = cl::Buffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, cb, hostData2.get());
-	auto deviceSum = cl::Buffer(context, begin(hostSum), end(hostSum), false, true);
+	auto deviceData1 = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, hostData1Size * sizeof(float), hostData1.get());
+	auto deviceData2 = cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, hostData2Size * sizeof(float), hostData2.get());
+	auto deviceSum = cl::Buffer(context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR, sizeof(float), &sum);
 	auto commandQueue = cl::CommandQueue(context);
 	auto deviceResult = deviceData2;
 
@@ -162,9 +129,9 @@ void runReduction(const cl::Context& context)
 		cl::NDRange(globalWorkSize),
 		cl::NDRange(globalWorkSize));
 
-	commandQueue.enqueueReadBuffer(deviceSum, CL_TRUE, 0, sizeof(float), hostSum.data());
+	commandQueue.enqueueReadBuffer(deviceSum, CL_TRUE, 0, sizeof(float), &sum);
 
-	auto finalAnswer = static_cast<int>(hostSum[0]);
+	auto finalAnswer = static_cast<int>(sum);
 	cout << "OpenCL final answer: " << finalAnswer << "; Correct answer: " << correctAnswer << endl;
 }
 
