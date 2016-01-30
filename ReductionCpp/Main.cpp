@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <array>
+#include <memory>
 
 using namespace std;
 
@@ -38,7 +39,7 @@ int main()
 
 					auto context = cl::Context(device);
 
-					runAdd(context);
+					//runAdd(context);
 					runReduction(context);
 				}
 			}
@@ -94,6 +95,77 @@ void runAdd(const cl::Context& context)
 void runReduction(const cl::Context& context)
 {
 	auto program = loadProgram(context, "reduction.cl");
+
+	auto kernel1 = cl::Kernel::Kernel(program, "reductionVector");
+	auto kernel2 = cl::Kernel::Kernel(program, "reductionComplete");
+
+	constexpr auto numValues = 1024 * 1024;
+	constexpr auto numValuesPerWorkItem = 4;
+	auto globalWorkSize = numValues / numValuesPerWorkItem;
+	constexpr auto localWorkSize = 32;
+	constexpr auto value = 42;
+	constexpr auto correctAnswer = 42 * numValues;
+
+	auto hostData1(make_unique<float[]>(numValues));
+	auto hostData2(make_unique<float[]>(numValues));
+	auto hostSum = array<float, 1>();
+
+	for (auto i = 0; i < numValues; ++i) hostData1[i] = 42.0f;
+	for (auto i = 0; i < numValues; ++i) hostData2[i] = 0.0f;
+
+	auto cb = static_cast<size_t>(numValues * sizeof(float));
+	auto deviceData1 = cl::Buffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, cb, hostData1.get());
+	auto deviceData2 = cl::Buffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, cb, hostData2.get());
+	auto deviceSum = cl::Buffer(context, begin(hostSum), end(hostSum), false, true);
+	auto commandQueue = cl::CommandQueue(context);
+	auto deviceResult = deviceData2;
+
+	for (auto index = 0; true; ++index) {
+
+		auto deviceDataIn = index % 2 == 0 ? deviceData1 : deviceData2;
+		auto deviceDataOut = index % 2 == 0 ? deviceData2 : deviceData1;
+		deviceResult = deviceDataOut;
+
+		kernel1.setArg(0, deviceDataIn);
+		kernel1.setArg(1, deviceDataOut);
+		kernel1.setArg(2, cl::__local(localWorkSize * numValuesPerWorkItem * sizeof(float)));
+
+		cout
+			<< "Calling enqueueNDRangeKernel(kernel1) with globalWorkSize: " << globalWorkSize
+			<< "; localWorkSize: " << localWorkSize
+			<< "; num work groups: " << globalWorkSize / localWorkSize
+			<< endl;
+
+		commandQueue.enqueueNDRangeKernel(
+			kernel1,
+			cl::NullRange,
+			cl::NDRange(globalWorkSize),
+			cl::NDRange(localWorkSize));
+
+		globalWorkSize /= localWorkSize;
+		if (globalWorkSize <= localWorkSize) break;
+	}
+
+	kernel2.setArg(0, deviceResult);
+	kernel2.setArg(1, cl::__local(localWorkSize * numValuesPerWorkItem * sizeof(float)));
+	kernel2.setArg(2, deviceSum);
+
+	cout
+		<< "Calling enqueueNDRangeKernel(kernel2) with globalWorkSize: " << globalWorkSize
+		<< "; localWorkSize: " << globalWorkSize
+		<< "; num work groups: " << globalWorkSize / globalWorkSize
+		<< endl;
+
+	commandQueue.enqueueNDRangeKernel(
+		kernel2,
+		cl::NullRange,
+		cl::NDRange(globalWorkSize),
+		cl::NDRange(globalWorkSize));
+
+	commandQueue.enqueueReadBuffer(deviceSum, CL_TRUE, 0, sizeof(float), hostSum.data());
+
+	auto finalAnswer = static_cast<int>(hostSum[0]);
+	cout << "OpenCL final answer: " << finalAnswer << "; Correct answer: " << correctAnswer << endl;
 }
 
 cl::Program loadProgram(const cl::Context& context, const string& fileName)
