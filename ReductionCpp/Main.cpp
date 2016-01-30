@@ -7,38 +7,60 @@
 
 using namespace std;
 
-void doAdd(const cl::Context& context);
-void doReduction(const cl::Context& context);
+void runAdd(const cl::Context& context);
+void runReduction(const cl::Context& context);
 cl::Program loadProgram(const cl::Context& context, const string& fileName);
 
 int main()
 {
 	try {
-		auto platform = cl::Platform::get();
-		auto platformName = platform.getInfo<CL_PLATFORM_NAME>();
-		auto platformVendor = platform.getInfo<CL_PLATFORM_VENDOR>();
-		auto platformVersion = platform.getInfo<CL_PLATFORM_VERSION>();
-		cout << platformName.c_str() << endl;
-		cout << platformVendor.c_str() << endl;
-		cout << platformVersion.c_str() << endl;
+		vector<cl::Platform> platforms;
+		cl::Platform::get(&platforms);
 
-		vector<cl::Device> devices;
-		platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+		for (auto& platform : platforms) {
 
-		auto context = cl::Context(devices);
+			auto platformName = platform.getInfo<CL_PLATFORM_NAME>();
+			auto platformVendor = platform.getInfo<CL_PLATFORM_VENDOR>();
+			auto platformVersion = platform.getInfo<CL_PLATFORM_VERSION>();
 
-		doAdd(context);
-		doReduction(context);
+			cout << platformName << endl;
+			cout << platformVendor << endl;
+			cout << platformVersion << endl;
+
+			try {
+				vector<cl::Device> devices;
+				platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+
+				for (auto& device : devices) {
+
+					auto deviceName = device.getInfo<CL_DEVICE_NAME>();
+					cout << "\t" << deviceName << endl;
+
+					auto context = cl::Context(device);
+
+					runAdd(context);
+					runReduction(context);
+				}
+			}
+			catch (const cl::Error& ex) {
+				if (ex.err() != CL_DEVICE_NOT_FOUND) throw;
+				cout << "No devices found for this platform!" << endl;
+			}
+		}
 	}
-	catch(const cl::Error& err) {
-		cerr << "ERROR: " << err.what() << "(" << err.err() << ")" << endl;
+	catch(const cl::Error& ex) {
+		cerr << "ERROR: " << ex.what() << " (" << ex.err() << ")" << endl;
+		exit(1);
+	}
+	catch (const ios_base::failure& ex) {
+		cerr << ex.what() << endl;
 		exit(1);
 	}
 
 	return 0;
 }
 
-void doAdd(const cl::Context& context)
+void runAdd(const cl::Context& context)
 {
 	auto program = loadProgram(context, "add.cl");
 
@@ -69,13 +91,18 @@ void doAdd(const cl::Context& context)
 	cout << h_c.back() << endl;
 }
 
-void doReduction(const cl::Context& context)
+void runReduction(const cl::Context& context)
 {
+	auto program = loadProgram(context, "reduction.cl");
 }
 
 cl::Program loadProgram(const cl::Context& context, const string& fileName)
 {
+	auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+	auto device = devices.front();
+
 	auto programFile = ifstream(fileName);
+	programFile.exceptions(ifstream::failbit);
 	auto programString = string(
 		istreambuf_iterator<char>(programFile),
 		istreambuf_iterator<char>());
@@ -83,10 +110,18 @@ cl::Program loadProgram(const cl::Context& context, const string& fileName)
 		1,
 		make_pair(programString.c_str(), programString.length() + 1));
 	auto program = cl::Program(context, sources);
-	auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
 
-	// TODO: Add a try catch to get the build log on failure.
-	program.build(devices);
+	try {
+		program.build(devices);
+	}
+	catch (const cl::Error& ex) {
+		if (ex.err() == CL_BUILD_PROGRAM_FAILURE) {
+			auto buildLog = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device);
+			cerr << "Error building " << fileName << endl;
+			cerr << buildLog << endl;
+		}
+		throw;
+	}
 
 	return program;
 }
