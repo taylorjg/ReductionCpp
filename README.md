@@ -7,14 +7,14 @@ The aim is to implement the Ch10_reduction_complete example from chapter 10 of t
 
 ## Update
 
-This code is now working fine. However, I ran into an issue when trying to run this on CPU devices.
-See [this discussion](https://software.intel.com/en-us/forums/opencl/topic/558984) for details
-of the problem (race condition).
+The code is now working fine. However, I ran into a couple of issues when trying to run this on CPU devices.
+The main issue (a race condition) is described in
+[this discussion](https://software.intel.com/en-us/forums/opencl/topic/558984).
 
 ### Fix 1
 
 To fix the race condition re reading/writing to the global `data` buffer, I changed the first kernel
-to use two global buffers which I call `dataIn` and `dataOut`. Each time I invoke the first kernel,
+to use two global buffers which I have called `dataIn` and `dataOut`. Each time I invoke the first kernel,
 I swap the order of the two buffers:
 
 ```C++
@@ -39,8 +39,8 @@ for (auto index = 0; true; ++index) {
 }
 ```
 
-`deviceResult` is used to keep track of which of the two buffers should be
-passed to the second kernel.
+`deviceResult` is used to identify which of the two buffers
+to pass to the second kernel.
 
 ### Fix 2
 
